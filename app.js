@@ -10,6 +10,7 @@
     : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
   const HTTP_BASE = WS_URL.replace(/^ws/, "http").replace(/\/ws$/, "");
   const PAGE_URL = location.origin + location.pathname;
+  const LOCALE = window.DIAMOND_LOCALE || "ru-RU";
 
   // ================= Состояние =================
   const S = {
@@ -78,16 +79,16 @@
   function fmtTime(ts) {
     const d = new Date(ts * 1000), now = new Date();
     if (d.toDateString() === now.toDateString())
-      return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+      return d.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
   }
-  function hm(ts) { return new Date(ts * 1000).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }); }
+  function hm(ts) { return new Date(ts * 1000).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" }); }
   function dayLabel(ts) {
     const d = new Date(ts * 1000), now = new Date();
     const y = new Date(now); y.setDate(now.getDate() - 1);
     if (d.toDateString() === now.toDateString()) return "Сегодня";
     if (d.toDateString() === y.toDateString()) return "Вчера";
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+    return d.toLocaleDateString(LOCALE, { day: "numeric", month: "long", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
   }
   function fmtSize(n) {
     if (n < 1024) return n + " Б";
@@ -327,7 +328,7 @@
     if (typers.length) last = h("span", { style: "color:var(--accent)" }, "печатает…");
     else if (c.last) {
       const who = c.type === "group" ? (c.last.user.id === S.me.id ? "Вы: " : c.last.user.display + ": ") : (c.type === "dm" && c.last.user.id === S.me.id ? "Вы: " : "");
-      last = [who ? h("span", { style: "color:var(--text)" }, who) : null, preview(c.last)];
+      last = [who ? h("span", { style: "color:var(--text)" }, who) : null, h("span", { class: "mtext" }, preview(c.last))];
     } else last = c.role ? "Нет сообщений" : (c.type === "channel" ? "Канал" : "Группа") + " · " + plural(c.members, "участник", "участника", "участников");
     const unread = S.unread.get(c.id);
     const icon = c.type === "channel" ? "📢 " : c.type === "group" ? "👥 " : "";
@@ -495,7 +496,7 @@
     else if (c.type === "group" && !mine && !cont)
       bubble.appendChild(h("div", { class: "sender" }, h("span", { style: `background:${colorFor(m.user.username)};-webkit-background-clip:text;background-clip:text;color:transparent` }, m.user.display), badgeEl(m.user.badge)));
     if (m.file) bubble.appendChild(fileEl(m.file));
-    if (m.text) { const t = h("span"); linkify(t, m.text); bubble.appendChild(t); }
+    if (m.text) { const t = h("span", { class: "mtext" }); linkify(t, m.text); bubble.appendChild(t); }
     bubble.appendChild(h("span", { class: "btime" }, hm(m.ts)));
     const showAvatar = c.type === "group" && !mine;
     return h("div", { class: cls, "data-id": m.id },
@@ -789,7 +790,7 @@
           ? h("button", { class: "mini-btn", onclick: () => unbanUser(u.username) }, "Разбан")
           : h("button", { class: "mini-btn danger", onclick: () => { closeModal(); banUser(u.username); } }, "Бан"));
         const sub = ["@" + u.username];
-        if (data.admin && u.created) sub.push("с " + new Date(u.created * 1000).toLocaleDateString("ru-RU"));
+        if (data.admin && u.created) sub.push("с " + new Date(u.created * 1000).toLocaleDateString(LOCALE));
         return h("div", { class: "member" + (u.banned ? " banned" : "") },
           userAvatar(u, "sm"),
           h("div", { class: "item-body" },
@@ -879,7 +880,8 @@
 
     $("modal").replaceChildren(
       h("div", { class: "users-head" }, h("h2", null, "⚙️ Профиль"), h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕")),
-      profileForm, pwForm);
+      profileForm, pwForm,
+      window.DIAMOND_I18N ? h("div", { class: "profile-form" }, h("h3", null, "🌐 Язык"), window.DIAMOND_I18N.picker()) : null);
     $("modalWrap").classList.remove("hidden");
   }
 
@@ -907,6 +909,7 @@
     const m = $("menu"); m.classList.remove("hidden");
   });
 
+  if (window.DIAMOND_I18N) $("authLang").appendChild(window.DIAMOND_I18N.picker());
   setAuthMode("login");
   connect();
 })();

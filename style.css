@@ -239,6 +239,12 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .profile-form + .profile-form { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
 .profile-form h3 { margin: 0; font-size: 16px; }
 .profile-top { display: flex; gap: 16px; align-items: center; margin-bottom: 4px; }
+.lang-select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; width: 100%;
+}
+.auth-lang { margin-top: 16px; display: flex; align-items: center; gap: 8px; justify-content: center; color: var(--muted); }
+.auth-lang .lang-select { width: auto; padding: 6px 10px; font-size: 14px; }
 .profile-btns { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .img-view { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: grid; place-items: center; z-index: 60; cursor: zoom-out; }
 .img-view img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
