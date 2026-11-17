@@ -116,6 +116,7 @@
   }
   function preview(m) {
     if (!m) return "";
+    if (m.gift) return "🎁 " + m.gift.emoji + " " + m.gift.name;
     const t = m.text || (m.file ? (m.file.mime.startsWith("image/") ? "🖼 Фото" : "📎 " + m.file.name) : "");
     return t.replace(/\s+/g, " ");
   }
@@ -184,6 +185,10 @@
       case "typing": onTyping(d); break;
       case "presence": onPresence(d); break;
       case "user_update": onUserUpdate(d.user); break;
+      case "balance":
+        if (S.me) { S.me.diamonds = d.diamonds; S.me.daily_next = d.daily_next; renderMe(); }
+        document.querySelectorAll(".my-balance").forEach((el) => { el.textContent = "💎 " + d.diamonds; });
+        break;
       case "banned":
         save("diamond_token", null); S.token = null;
         alert("Ваш аккаунт заблокирован: " + (d.reason || "без причины"));
@@ -250,7 +255,7 @@
     const el = userAvatar(S.me, null, true); el.id = "meAvatar";
     $("meAvatar").replaceWith(el);
     $("meName").replaceChildren(S.me.display, badgeEl(S.me.badge) || "");
-    $("meUser").textContent = "@" + S.me.username;
+    $("meUser").textContent = "@" + S.me.username + (S.me.diamonds != null ? "  ·  💎 " + S.me.diamonds : "");
   }
 
   function upsertChat(c) {
@@ -495,6 +500,15 @@
     if (isChannel) bubble.appendChild(h("div", { class: "sender", style: "color:var(--accent)" }, c.title));
     else if (c.type === "group" && !mine && !cont)
       bubble.appendChild(h("div", { class: "sender" }, h("span", { style: `background:${colorFor(m.user.username)};-webkit-background-clip:text;background-clip:text;color:transparent` }, m.user.display), badgeEl(m.user.badge)));
+    if (m.gift) {
+      bubble.classList.add("gift-bubble");
+      bubble.appendChild(h("div", { class: "gift-card" },
+        h("div", { class: "gift-emoji" }, m.gift.emoji),
+        h("div", { class: "gift-label" }, mine ? "Вы подарили" : "Вам подарок"),
+        h("div", { class: "gift-name" }, m.gift.name),
+        m.gift.note ? h("div", { class: "gift-note mtext" }, "«" + m.gift.note + "»") : null,
+        h("div", { class: "gift-price" }, "💎 " + m.gift.price)));
+    }
     if (m.file) bubble.appendChild(fileEl(m.file));
     if (m.text) { const t = h("span", { class: "mtext" }); linkify(t, m.text); bubble.appendChild(t); }
     bubble.appendChild(h("span", { class: "btime" }, hm(m.ts)));
@@ -640,7 +654,12 @@
         h("div", { class: "info-title" }, c.title, c.type === "dm" && c.peer ? badgeEl(c.peer.badge) : null),
         h("div", { class: "muted small" }, c.type === "dm" && c.peer ? (c.peer.online ? "в сети" : "не в сети") : kind)),
     ];
-    if (c.type === "dm" && c.peer) blocks.push(h("div", { class: "info-block" }, h("div", { class: "info-label" }, "Юзернейм"), "@" + c.peer.username));
+    let giftsBlock = null;
+    if (c.type === "dm" && c.peer) {
+      blocks.push(h("div", { class: "info-block" }, h("div", { class: "info-label" }, "Юзернейм"), "@" + c.peer.username));
+      giftsBlock = h("div", { class: "info-block" }, h("div", { class: "info-label" }, "🎁 Подарки"), h("div", { class: "muted small" }, "Загрузка…"));
+      blocks.push(giftsBlock);
+    }
     if (c.description) blocks.push(h("div", { class: "info-block" }, h("div", { class: "info-label" }, "Описание"), c.description));
     if (c.handle) {
       const link = `${PAGE_URL}#join=${c.handle}`;
@@ -656,6 +675,7 @@
     if (c.type !== "dm") blocks.push(membersBlock);
 
     const actions = h("div", { class: "info-actions" });
+    if (c.type === "dm" && c.peer) actions.appendChild(h("button", { class: "btn", onclick: () => giftModal(c.peer) }, "🎁 Подарить подарок"));
     if (c.type === "dm" && c.peer && S.isAdmin && !c.peer.badge) actions.appendChild(h("button", { class: "btn danger", onclick: () => banUser(c.peer.username) }, "🛡️ Забанить пользователя"));
     if (c.role && c.role !== "owner" && c.type !== "dm") actions.appendChild(h("button", { class: "btn ghost", onclick: () => leaveChat(c) }, c.type === "channel" ? "Отписаться" : "Выйти из группы"));
     if (c.role === "owner" || (S.isAdmin && c.type !== "dm") || (c.type === "dm" && c.role))
@@ -663,6 +683,7 @@
     if (actions.childNodes.length) blocks.push(actions);
     info.replaceChildren(...blocks);
 
+    if (giftsBlock) { fillGifts(giftsBlock, c.peer.id); return; }
     if (c.type === "dm") return;
     try {
       const r = await call("members", { chat_id: c.id });
@@ -760,6 +781,13 @@
       h("button", { class: "btn ghost", type: "button", onclick: async () => {
         try { const r = await call("unban", { username: $("mUser").value }); toast(r.text); closeModal(); } catch (e) { toast(e.message, true); }
       } }, "Разбанить"),
+      h("div", { class: "info-label", style: "margin-top:8px" }, "💎 Алмазы"),
+      h("div", { class: "copy-row" },
+        h("input", { id: "mAmount", type: "number", placeholder: "Сколько (можно с минусом)" }),
+        h("button", { class: "btn ghost", type: "button", onclick: async () => {
+          try { const r = await call("grant", { username: $("mUser").value, amount: parseInt($("mAmount").value, 10) || 0 }); toast(r.text); }
+          catch (e) { toast(e.message, true); }
+        } }, "Начислить")),
     ], "Забанить", async () => {
       const r = await call("ban", { username: $("mUser").value, reason: $("mReason").value });
       toast(r.text);
@@ -786,6 +814,7 @@
         const me = u.id === S.me.id;
         const btns = [];
         if (!me) btns.push(h("button", { class: "mini-btn", title: "Написать", onclick: () => { closeModal(); startDM(u.id); } }, "💬"));
+        if (!me) btns.push(h("button", { class: "mini-btn", title: "Подарить подарок", onclick: () => giftModal(u) }, "🎁"));
         if (data.admin && !me && !u.badge) btns.push(u.banned
           ? h("button", { class: "mini-btn", onclick: () => unbanUser(u.username) }, "Разбан")
           : h("button", { class: "mini-btn danger", onclick: () => { closeModal(); banUser(u.username); } }, "Бан"));
@@ -885,6 +914,93 @@
     $("modalWrap").classList.remove("hidden");
   }
 
+  // ================= Подарки и алмазы =================
+  async function fillGifts(block, userId) {
+    let r;
+    try { r = await call("user_gifts", { user_id: userId }); }
+    catch (e) { block.lastChild.textContent = e.message; return; }
+    const label = h("div", { class: "info-label" }, "🎁 Подарки" + (r.gifts.length ? " · " + r.gifts.length : ""));
+    if (!r.gifts.length) { block.replaceChildren(label, h("div", { class: "muted small" }, "Подарков пока нет")); return; }
+    block.replaceChildren(label, h("div", { class: "gift-shelf" }, ...r.gifts.map((g) => {
+      const from = g.from ? g.from.display : "?";
+      const tip = `${g.name} · ${from} · ${new Date(g.ts * 1000).toLocaleDateString(LOCALE)}` + (g.note ? `\n«${g.note}»` : "");
+      return h("div", { class: "gift-mini", title: tip },
+        h("div", { class: "gift-emoji" }, g.emoji),
+        g.from ? userAvatar(g.from, "xs", true) : null);
+    })));
+  }
+
+  async function giftModal(user) {
+    let r;
+    try { r = await call("gifts"); } catch (e) { return toast(e.message, true); }
+    let selected = null;
+    const err = h("p", { class: "error" });
+    const note = h("input", { maxlength: 120, placeholder: "Подпись к подарку (необязательно)" });
+    const sendBtn = h("button", { class: "btn", type: "submit", disabled: true }, "Выберите подарок");
+    const grid = h("div", { class: "gift-grid" }, ...r.gifts.map((g) => {
+      const tile = h("button", { type: "button", class: "gift-tile" + (g.price > r.me.diamonds ? " poor" : "") },
+        h("div", { class: "gift-emoji" }, g.emoji),
+        h("div", { class: "gift-tname" }, g.name),
+        h("div", { class: "gift-price" }, "💎 " + g.price));
+      tile.addEventListener("click", () => {
+        selected = g;
+        grid.querySelectorAll(".gift-tile").forEach((x) => x.classList.remove("sel"));
+        tile.classList.add("sel");
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Подарить за 💎 " + g.price;
+      });
+      return tile;
+    }));
+    const form = h("form", { class: "profile-form" },
+      h("div", { class: "users-head" }, h("h2", null, "🎁 Подарить подарок"), h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕")),
+      h("div", { class: "gift-to" }, userAvatar(user, "sm", true), h("div", { class: "item-body" }, h("div", { class: "bold" }, user.display), h("div", { class: "muted small" }, "@" + user.username)),
+        h("div", { class: "my-balance balance-chip" }, "💎 " + r.me.diamonds)),
+      grid, note, err, sendBtn);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!selected) return;
+      sendBtn.disabled = true; err.textContent = "";
+      try {
+        await call("send_gift", { user_id: user.id, gift: selected.id, note: note.value });
+        toast("Подарок отправлен 🎁"); closeModal();
+        if (!$("info").classList.contains("hidden")) renderInfo();
+      } catch (x) { err.textContent = x.message; sendBtn.disabled = false; }
+    });
+    $("modal").replaceChildren(form);
+    $("modal").classList.add("wide");
+    $("modalWrap").classList.remove("hidden");
+  }
+
+  function walletModal() {
+    const dailyBtn = h("button", { class: "btn", type: "button" });
+    const updateDaily = () => {
+      const left = (S.me.daily_next || 0) - Date.now() / 1000;
+      if (left > 0) {
+        dailyBtn.disabled = true;
+        dailyBtn.textContent = `Следующий бонус через ${Math.floor(left / 3600)} ч ${Math.floor(left % 3600 / 60)} мин`;
+      } else { dailyBtn.disabled = false; dailyBtn.textContent = "🎁 Забрать ежедневный бонус"; }
+      if (window.DIAMOND_I18N) dailyBtn.textContent = window.DIAMOND_I18N.tr(dailyBtn.textContent);
+    };
+    updateDaily();
+    dailyBtn.addEventListener("click", async () => {
+      dailyBtn.disabled = true;
+      try { const r = await call("daily"); toast(r.text); } catch (e) { toast(e.message, true); }
+      setTimeout(updateDaily, 300);
+    });
+    const giftsBlock = h("div", { class: "info-block", style: "padding:0" }, h("div", { class: "info-label" }, "🎁 Подарки"), h("div", { class: "muted small" }, "Загрузка…"));
+    $("modal").replaceChildren(
+      h("div", { class: "users-head" }, h("h2", null, "🎁 Мои подарки и алмазы"), h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕")),
+      h("div", { class: "wallet" },
+        h("div", { class: "muted small" }, "Ваш баланс"),
+        h("div", { class: "wallet-bal my-balance" }, "💎 " + (S.me.diamonds ?? 0)),
+        dailyBtn,
+        h("div", { class: "muted small" }, "Алмазы тратятся на подарки. Каждый день можно забрать бонус.")),
+      giftsBlock);
+    $("modal").classList.add("wide");
+    $("modalWrap").classList.remove("hidden");
+    fillGifts(giftsBlock, S.me.id);
+  }
+
   // ================= Меню =================
   $("menuBtn").addEventListener("click", (e) => { e.stopPropagation(); $("menu").classList.toggle("hidden"); });
   document.addEventListener("click", (e) => { if (!$("menu").contains(e.target)) $("menu").classList.add("hidden"); });
@@ -897,6 +1013,7 @@
     if (act === "join-link") joinLinkModal();
     if (act === "users") usersModal();
     if (act === "profile") profileModal();
+    if (act === "wallet") walletModal();
     if (act === "admin") adminModal();
     if (act === "logout") {
       if (!confirm("Выйти из аккаунта?")) return;

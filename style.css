@@ -239,6 +239,39 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .profile-form + .profile-form { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
 .profile-form h3 { margin: 0; font-size: 16px; }
 .profile-top { display: flex; gap: 16px; align-items: center; margin-bottom: 4px; }
+
+/* ===== Подарки ===== */
+.avatar.xs { width: 20px; height: 20px; font-size: 10px; }
+.gift-bubble { background: linear-gradient(160deg, #2a2350, #1d2d4f) !important; border: 1px solid rgba(139,123,255,.35); min-width: 200px; }
+.gift-card { text-align: center; padding: 8px 6px 2px; }
+.gift-card .gift-emoji { font-size: 64px; line-height: 1.1; animation: gift-pop .7s ease-out, gift-float 3s ease-in-out .7s infinite; display: inline-block; }
+.gift-label { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+.gift-name { font-weight: 700; font-size: 17px; }
+.gift-note { font-style: italic; opacity: .85; margin-top: 4px; white-space: pre-wrap; }
+.gift-price { font-size: 12px; opacity: .8; margin-top: 4px; }
+@keyframes gift-pop { 0% { transform: scale(.3) rotate(-15deg); opacity: 0; } 70% { transform: scale(1.15) rotate(5deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@keyframes gift-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+.gift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; overflow-y: auto; flex: 1; min-height: 160px; padding: 2px; }
+.gift-tile {
+  background: var(--panel-2); border: 2px solid var(--border); border-radius: 14px; padding: 10px 4px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform .1s, border-color .1s;
+}
+.gift-tile:hover { transform: translateY(-2px); border-color: var(--accent-2); }
+.gift-tile.sel { border-color: var(--accent); background: var(--active); }
+.gift-tile.poor { opacity: .45; }
+.gift-tile .gift-emoji { font-size: 38px; line-height: 1.2; }
+.gift-tname { font-size: 13px; font-weight: 600; }
+.gift-to { display: flex; align-items: center; gap: 10px; }
+.balance-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-weight: 700; white-space: nowrap; }
+.gift-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; }
+.gift-mini { position: relative; background: var(--panel-2); border-radius: 12px; height: 58px; display: grid; place-items: center; cursor: help; }
+.gift-mini .gift-emoji { font-size: 30px; }
+.gift-mini .avatar { position: absolute; right: 3px; bottom: 3px; border: 2px solid var(--panel-2); }
+.wallet { text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; padding: 6px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.wallet-bal { font-size: 40px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wallet .btn { min-width: 260px; max-width: 100%; }
+
 .lang-select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
   border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; width: 100%;
