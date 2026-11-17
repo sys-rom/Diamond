@@ -106,6 +106,7 @@
     }
   }
   function toast(text, err) {
+    if (!text) return;
     const t = h("div", { class: "toast" + (err ? " err" : "") }, text);
     $("toasts").appendChild(t);
     setTimeout(() => t.remove(), 3500);
@@ -140,7 +141,10 @@
       let d; try { d = JSON.parse(e.data); } catch { return; }
       if (d.rid && pending.has(d.rid)) {
         const p = pending.get(d.rid); pending.delete(d.rid);
-        d.type === "error" ? p.rej(new Error(d.text)) : p.res(d);
+        if (d.type === "error") p.rej(new Error(d.text));
+        // пустой «ok» на запрос, который должен вернуть данные = на сервере старый server.py
+        else if (d.type === "ok" && !OK_REPLIES.has(p.type)) p.rej(new Error("Сервер устарел: обновите server.py и перезапустите сервер"));
+        else p.res(d);
         return;
       }
       onEvent(d);
@@ -152,12 +156,13 @@
       setTimeout(connect, Math.min(1000 * 2 ** retry++, 10000));
     };
   }
+  const OK_REPLIES = new Set(["send", "delete_msg", "typing", "logout"]);
   function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
   function call(type, data = {}) {
     return new Promise((res, rej) => {
       if (!ws || ws.readyState !== 1) return rej(new Error("Нет связи с сервером"));
       const rid = ++ridSeq;
-      pending.set(rid, { res, rej });
+      pending.set(rid, { res, rej, type });
       ws.send(JSON.stringify({ type, ...data, rid }));
       setTimeout(() => { if (pending.has(rid)) { pending.delete(rid); rej(new Error("Сервер не ответил")); } }, 20000);
     });
