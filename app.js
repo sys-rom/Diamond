@@ -118,6 +118,7 @@
   function preview(m) {
     if (!m) return "";
     if (m.gift) return "🎁 " + m.gift.emoji + " " + m.gift.name;
+    if (m.sticker) return "🎨 Стикер";
     const t = m.text || (m.file ? (m.file.mime.startsWith("image/") ? "🖼 Фото" : "📎 " + m.file.name) : "");
     return t.replace(/\s+/g, " ");
   }
@@ -412,6 +413,7 @@
     S.active = id;
     S.unread.delete(id); updateTitle();
     clearAttach();
+    $("stickerPanel").classList.add("hidden");
     $("empty").classList.add("hidden");
     $("chatInner").classList.remove("hidden");
     $("app").classList.add("chat-open");
@@ -505,6 +507,13 @@
     if (isChannel) bubble.appendChild(h("div", { class: "sender", style: "color:var(--accent)" }, c.title));
     else if (c.type === "group" && !mine && !cont)
       bubble.appendChild(h("div", { class: "sender" }, h("span", { style: `background:${colorFor(m.user.username)};-webkit-background-clip:text;background-clip:text;color:transparent` }, m.user.display), badgeEl(m.user.badge)));
+    if (m.sticker) {
+      bubble.classList.add("sticker-bubble");
+      const img = h("img", { class: "sticker-img", alt: "" });
+      fileUrl({ id: m.sticker }).then((u) => { img.src = u; }).catch(() => {});
+      if (!mine) { img.title = "Нажмите, чтобы сохранить стикер"; img.addEventListener("click", () => saveSticker(m.sticker)); }
+      bubble.appendChild(img);
+    }
     if (m.gift) {
       bubble.classList.add("gift-bubble");
       bubble.appendChild(h("div", { class: "gift-card" },
@@ -915,9 +924,84 @@
     $("modal").replaceChildren(
       h("div", { class: "users-head" }, h("h2", null, "⚙️ Профиль"), h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕")),
       profileForm, pwForm,
-      window.DIAMOND_I18N ? h("div", { class: "profile-form" }, h("h3", null, "🌐 Язык"), window.DIAMOND_I18N.picker()) : null);
+      ...(window.DIAMOND_I18N ? [h("div", { class: "profile-form" }, h("h3", null, "🌐 Язык"), window.DIAMOND_I18N.picker())] : []));
     $("modalWrap").classList.remove("hidden");
   }
+
+  // ================= Стикеры =================
+  let myStickers = null, stickerEdit = false;
+  async function toggleStickers() {
+    const p = $("stickerPanel");
+    if (!p.classList.contains("hidden")) { p.classList.add("hidden"); return; }
+    p.classList.remove("hidden");
+    stickerEdit = false;
+    p.replaceChildren(h("div", { class: "muted small", style: "padding:14px" }, "Загрузка…"));
+    try {
+      if (!myStickers) myStickers = (await call("stickers")).stickers;
+      renderStickerPanel();
+    } catch (e) { p.replaceChildren(h("div", { class: "error", style: "padding:14px" }, e.message)); }
+  }
+  function renderStickerPanel() {
+    const p = $("stickerPanel");
+    const add = h("label", { class: "sticker-tile add", title: "Добавить стикер" }, "＋",
+      h("input", { type: "file", accept: "image/*", hidden: true, onchange: (e) => uploadSticker(e.target) }));
+    const tiles = myStickers.map((s) => {
+      const img = h("img", { alt: "" });
+      fileUrl({ id: s.file }).then((u) => { img.src = u; }).catch(() => {});
+      return h("div", { class: "sticker-tile" + (stickerEdit ? " editing" : ""), onclick: () => (stickerEdit ? delSticker(s) : sendSticker(s.file)) },
+        img, stickerEdit ? h("span", { class: "sticker-x" }, "✕") : null);
+    });
+    p.replaceChildren(...[
+      h("div", { class: "sticker-head" },
+        h("span", { class: "bold" }, "Мои стикеры"),
+        h("span", { class: "muted small grow" }, myStickers.length + " / 200"),
+        myStickers.length ? h("button", { class: "mini-btn", type: "button", onclick: () => { stickerEdit = !stickerEdit; renderStickerPanel(); } }, stickerEdit ? "Готово" : "Изменить") : null),
+      h("div", { class: "sticker-grid" }, add, ...tiles),
+      myStickers.length ? null : h("div", { class: "muted small", style: "padding:0 14px 14px" },
+        "Нажмите «＋», чтобы загрузить картинку как стикер. Чужой стикер из чата можно сохранить, нажав на него."),
+    ].filter(Boolean));
+  }
+  // уменьшаем до 512px, прозрачность сохраняется (webp/png); анимированные GIF оставляем как есть
+  async function stickerImage(f, max = 512) {
+    if (f.type === "image/gif" && f.size < 3 * 1024 * 1024) return f;
+    const bmp = await createImageBitmap(f);
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    let blob = await new Promise((r) => c.toBlob(r, "image/webp", 0.9));
+    if (!blob || blob.type !== "image/webp") blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    return new File([blob], blob.type === "image/webp" ? "sticker.webp" : "sticker.png", { type: blob.type });
+  }
+  async function uploadSticker(input) {
+    const f = input.files[0]; input.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return toast("Стикер должен быть картинкой", true);
+    try {
+      const up = await uploadFile(await stickerImage(f));
+      const r = await call("add_sticker", { file_id: up.id });
+      myStickers = r.stickers; renderStickerPanel(); toast(r.toast);
+    } catch (e) { toast(e.message, true); }
+  }
+  async function delSticker(s) {
+    try { myStickers = (await call("del_sticker", { id: s.id })).stickers; renderStickerPanel(); }
+    catch (e) { toast(e.message, true); }
+  }
+  function sendSticker(fid) {
+    if (!S.active) return;
+    send({ type: "send", chat_id: S.active, sticker: fid });
+    $("stickerPanel").classList.add("hidden");
+  }
+  async function saveSticker(fid) {
+    if (!confirm("Добавить этот стикер в свои?")) return;
+    try { const r = await call("add_sticker", { file_id: fid }); myStickers = r.stickers; toast(r.toast); }
+    catch (e) { toast(e.message, true); }
+  }
+  $("stickerBtn").addEventListener("click", (e) => { e.stopPropagation(); toggleStickers(); });
+  document.addEventListener("click", (e) => {
+    const p = $("stickerPanel");
+    if (!p.classList.contains("hidden") && !p.contains(e.target) && e.target !== $("stickerBtn")) p.classList.add("hidden");
+  });
 
   // ================= Подарки и алмазы =================
   async function fillGifts(block, userId) {

@@ -240,6 +240,28 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .profile-form h3 { margin: 0; font-size: 16px; }
 .profile-top { display: flex; gap: 16px; align-items: center; margin-bottom: 4px; }
 
+/* ===== Стикеры ===== */
+.chat-inner { position: relative; }
+.sticker-panel {
+  position: absolute; left: 12px; bottom: 66px; z-index: 5; width: min(390px, calc(100% - 24px)); max-height: 380px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.5); display: flex; flex-direction: column;
+}
+.sticker-head { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.grow { flex: 1; }
+.sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; padding: 10px; overflow-y: auto; }
+.sticker-tile { aspect-ratio: 1; border-radius: 12px; display: grid; place-items: center; cursor: pointer; position: relative; }
+.sticker-tile:hover { background: var(--hover); }
+.sticker-tile img { max-width: 88%; max-height: 88%; object-fit: contain; }
+.sticker-tile.add { border: 2px dashed var(--border); font-size: 28px; color: var(--muted); }
+.sticker-tile.add:hover { border-color: var(--accent); color: var(--accent); }
+.sticker-tile.editing { animation: wiggle .25s infinite alternate; }
+.sticker-x { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--danger); color: #fff; font-size: 11px; display: grid; place-items: center; }
+@keyframes wiggle { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+.bubble.sticker-bubble { background: transparent !important; border: 0 !important; padding: 0 !important; min-width: 0 !important; }
+.sticker-img { display: block; max-width: 180px; max-height: 180px; object-fit: contain; cursor: pointer; }
+.sticker-bubble .btime { float: none; display: block; text-align: right; margin: 2px 4px 0; color: var(--muted) !important; }
+
 /* ===== Подарки ===== */
 .avatar.xs { width: 20px; height: 20px; font-size: 10px; }
 .gift-bubble { background: linear-gradient(160deg, #2a2350, #1d2d4f) !important; border: 1px solid rgba(139,123,255,.35); min-width: 200px; }
