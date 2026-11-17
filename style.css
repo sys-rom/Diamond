@@ -228,6 +228,18 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .prefix { display: flex; align-items: center; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding-left: 12px; }
 .prefix span { color: var(--muted); }
 .prefix input { border: 0; background: none; padding-left: 4px; }
+.modal.wide { max-width: 560px; height: min(720px, 90vh); }
+.users-head { display: flex; align-items: center; justify-content: space-between; }
+.users-list { flex: 1; overflow-y: auto; margin: 0 -8px; padding: 0 8px; min-height: 120px; }
+.users-list .member { padding: 8px 6px; border-radius: 10px; }
+.users-list .member:hover { background: var(--hover); }
+.member.banned { opacity: .6; }
+.menu button.menu-me { display: flex; text-align: left; border-radius: 10px 10px 0 0; }
+.profile-form { display: flex; flex-direction: column; gap: 10px; }
+.profile-form + .profile-form { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
+.profile-form h3 { margin: 0; font-size: 16px; }
+.profile-top { display: flex; gap: 16px; align-items: center; margin-bottom: 4px; }
+.profile-btns { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .img-view { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: grid; place-items: center; z-index: 60; cursor: zoom-out; }
 .img-view img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
 
@@ -250,4 +262,6 @@ input:focus, textarea:focus { border-color: var(--accent); }
   .messages { padding: 12px 10px; }
   .msg { max-width: 88%; }
   .info { width: 100%; }
+  .modal-wrap:has(.modal.wide) { padding: 0; }
+  .modal.wide { max-width: none; height: 100%; max-height: none; border-radius: 0; border: 0; }
 }

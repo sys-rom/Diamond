@@ -40,15 +40,17 @@
       </div>
     </div>
     <div id="menu" class="menu hidden">
-      <div class="menu-me">
+      <button class="menu-me" data-act="profile" title="Открыть профиль">
         <div id="meAvatar"></div>
         <div>
           <div id="meName" class="bold"></div>
           <div id="meUser" class="muted small"></div>
         </div>
-      </div>
+      </button>
+      <button data-act="profile">⚙️ Профиль</button>
       <button data-act="new-group">👥 Создать группу</button>
       <button data-act="new-channel">📢 Создать канал</button>
+      <button data-act="users">👤 Все пользователи</button>
       <button data-act="join-link">🔗 Вступить по ссылке</button>
       <button data-act="admin" id="adminMenuBtn" class="hidden">🛡️ Админ-панель</button>
       <button data-act="logout" class="danger">🚪 Выйти</button>

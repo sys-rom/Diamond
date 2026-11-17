@@ -56,14 +56,21 @@
     const el = h("div", { class: "avatar" + (opts.size ? " " + opts.size : "") + (opts.online ? " online" : "") });
     el.style.background = colorFor(opts.seed || name);
     el.textContent = opts.icon || (String(name || "?").trim()[0] || "?");
+    if (opts.img) fileUrl({ id: opts.img }).then((u) => {
+      el.style.background = `center / cover no-repeat url("${u}")`;
+      el.textContent = "";
+    }).catch(() => {});
     return el;
+  }
+  function userAvatar(u, size, noOnline) {
+    return avatar(u.display, { size, seed: u.username, online: !noOnline && u.online, img: u.avatar });
   }
   function chatIcon(c) {
     if (c.type === "dm") return null;
     return c.type === "channel" ? "📢" : null;
   }
   function chatAvatar(c, size) {
-    if (c.type === "dm" && c.peer) return avatar(c.peer.display, { size, seed: c.peer.username, online: c.peer.online });
+    if (c.type === "dm" && c.peer) return userAvatar(c.peer, size);
     return avatar(c.title, { size, seed: "c" + c.id, icon: chatIcon(c) });
   }
   function badgeEl(b) { return b ? h("span", { class: "badge" }, b) : null; }
@@ -175,6 +182,7 @@
       case "chat_removed": removeChat(d.chat_id); break;
       case "typing": onTyping(d); break;
       case "presence": onPresence(d); break;
+      case "user_update": onUserUpdate(d.user); break;
       case "banned":
         save("diamond_token", null); S.token = null;
         alert("Ваш аккаунт заблокирован: " + (d.reason || "без причины"));
@@ -224,6 +232,26 @@
     if (S.active) renderHeader();
   }
 
+  // кто-то сменил имя или фото — обновляем везде
+  function onUserUpdate(u) {
+    const patch = (x) => x && x.id === u.id ? Object.assign(x, { display: u.display, avatar: u.avatar, badge: u.badge }) : x;
+    if (S.me && S.me.id === u.id) { patch(S.me); renderMe(); }
+    for (const c of S.chats.values()) {
+      if (c.peer && c.peer.id === u.id) { patch(c.peer); c.title = u.display; }
+      if (c.last) patch(c.last.user);
+    }
+    for (const arr of S.msgs.values()) for (const m of arr) patch(m.user);
+    renderList();
+    if (S.active) { renderHeader(); renderMessages(false); }
+  }
+
+  function renderMe() {
+    const el = userAvatar(S.me, null, true); el.id = "meAvatar";
+    $("meAvatar").replaceWith(el);
+    $("meName").replaceChildren(S.me.display, badgeEl(S.me.badge) || "");
+    $("meUser").textContent = "@" + S.me.username;
+  }
+
   function upsertChat(c) {
     const old = S.chats.get(c.id);
     if (old && !c.last && old.last) c.last = old.last;
@@ -271,9 +299,7 @@
     for (const c of d.chats) S.chats.set(c.id, c);
     $("auth").classList.add("hidden");
     $("app").classList.remove("hidden");
-    const ma = $("meAvatar"); ma.replaceWith(Object.assign(avatar(S.me.display, { seed: S.me.username }), { id: "meAvatar" }));
-    $("meName").replaceChildren(S.me.display, badgeEl(S.me.badge) || "");
-    $("meUser").textContent = "@" + S.me.username;
+    renderMe();
     $("adminMenuBtn").classList.toggle("hidden", !S.isAdmin);
     renderList();
     if (prevActive && (S.chats.has(prevActive))) openChat(prevActive);
@@ -347,7 +373,7 @@
     if (r.users.length) {
       out.push(h("div", { class: "section" }, "Люди"));
       for (const u of r.users) out.push(h("div", { class: "item", onclick: () => startDM(u.id) },
-        avatar(u.display, { seed: u.username, online: u.online }),
+        userAvatar(u),
         h("div", { class: "item-body" }, h("div", { class: "item-title" }, u.display, badgeEl(u.badge)), h("div", { class: "item-last" }, "@" + u.username))));
     }
     const pub = r.chats.filter((c) => !mine.some((m) => m.id === c.id));
@@ -473,7 +499,7 @@
     bubble.appendChild(h("span", { class: "btime" }, hm(m.ts)));
     const showAvatar = c.type === "group" && !mine;
     return h("div", { class: cls, "data-id": m.id },
-      showAvatar ? avatar(m.user.display, { seed: m.user.username }) : null,
+      showAvatar ? userAvatar(m.user, null, true) : null,
       bubble,
       canDelete(c, m) ? h("button", { class: "del-btn", title: "Удалить", onclick: () => deleteMsg(m) }, "🗑") : null);
   }
@@ -650,7 +676,7 @@
               btns.push(h("button", { class: "mini-btn", onclick: () => promote(c, u) }, u.role === "admin" ? "Снять админа" : "Сделать админом"));
             if (S.isAdmin && !u.badge) btns.push(h("button", { class: "mini-btn danger", onclick: () => banUser(u.username) }, "Бан"));
           }
-          return h("div", { class: "member" }, avatar(u.display, { size: "sm", seed: u.username, online: u.online }),
+          return h("div", { class: "member" }, userAvatar(u, "sm"),
             h("div", { class: "item-body" }, h("div", null, u.display, badgeEl(u.badge)),
               h("div", { class: "muted small" }, "@" + u.username, roleName[u.role] ? h("span", { class: "role" }, " · " + roleName[u.role]) : null)),
             ...btns);
@@ -693,7 +719,7 @@
     $("modalWrap").classList.remove("hidden");
     const first = form.querySelector("input, textarea"); if (first) setTimeout(() => first.focus(), 30);
   }
-  function closeModal() { $("modalWrap").classList.add("hidden"); }
+  function closeModal() { $("modalWrap").classList.add("hidden"); $("modal").classList.remove("wide"); }
   $("modalWrap").addEventListener("mousedown", (e) => { if (e.target === $("modalWrap")) closeModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeModal(); $("menu").classList.add("hidden"); } });
 
@@ -739,6 +765,124 @@
     }, true);
   }
 
+  // ================= Все пользователи =================
+  async function usersModal() {
+    const list = h("div", { class: "users-list" }, h("div", { class: "empty-note" }, "Загрузка…"));
+    const stats = h("div", { class: "muted small" });
+    const filter = h("input", { placeholder: "Поиск по имени или @юзернейму", autocomplete: "off", spellcheck: "false" });
+    const close = h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕");
+    $("modal").replaceChildren(
+      h("div", { class: "users-head" }, h("h2", null, "👤 Все пользователи"), close),
+      stats, filter, list);
+    $("modal").classList.add("wide");
+    $("modalWrap").classList.remove("hidden");
+
+    let data;
+    const render = () => {
+      const q = filter.value.trim().replace(/^@/, "").toLowerCase();
+      const users = data.users.filter((u) => !q || u.username.includes(q) || u.display.toLowerCase().includes(q));
+      list.replaceChildren(...(users.length ? users.map((u) => {
+        const me = u.id === S.me.id;
+        const btns = [];
+        if (!me) btns.push(h("button", { class: "mini-btn", title: "Написать", onclick: () => { closeModal(); startDM(u.id); } }, "💬"));
+        if (data.admin && !me && !u.badge) btns.push(u.banned
+          ? h("button", { class: "mini-btn", onclick: () => unbanUser(u.username) }, "Разбан")
+          : h("button", { class: "mini-btn danger", onclick: () => { closeModal(); banUser(u.username); } }, "Бан"));
+        const sub = ["@" + u.username];
+        if (data.admin && u.created) sub.push("с " + new Date(u.created * 1000).toLocaleDateString("ru-RU"));
+        return h("div", { class: "member" + (u.banned ? " banned" : "") },
+          userAvatar(u, "sm"),
+          h("div", { class: "item-body" },
+            h("div", null, u.display, me ? h("span", { class: "muted" }, " (вы)") : null, badgeEl(u.badge)),
+            h("div", { class: "muted small" }, sub.join(" · "),
+              u.online ? h("span", { style: "color:var(--ok)" }, " · в сети") : null,
+              u.banned ? h("span", { style: "color:var(--danger)" }, " · забанен: " + u.banned) : null)),
+          ...btns);
+      }) : [h("div", { class: "empty-note" }, "Никого не найдено")]));
+    };
+    const loadUsers = async () => {
+      try { data = await call("users"); } catch (e) { list.replaceChildren(h("div", { class: "empty-note" }, e.message)); return; }
+      stats.textContent = `Всего: ${data.total} · в сети: ${data.online}`;
+      render();
+    };
+    async function unbanUser(username) {
+      try { const r = await call("unban", { username }); toast(r.text); loadUsers(); } catch (e) { toast(e.message, true); }
+    }
+    filter.addEventListener("input", () => data && render());
+    await loadUsers();
+    if (matchMedia("(min-width: 761px)").matches) filter.focus();
+  }
+
+  // ================= Профиль =================
+  // обрезаем фото до квадрата 256×256, чтобы аватарки грузились быстро
+  async function squareImage(file, size = 256) {
+    const bmp = await createImageBitmap(file);
+    const s = Math.min(bmp.width, bmp.height);
+    const c = document.createElement("canvas"); c.width = c.height = size;
+    c.getContext("2d").drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, size, size);
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
+    return new File([blob], "avatar.jpg", { type: "image/jpeg" });
+  }
+
+  function profileModal() {
+    let newAvatar = S.me.avatar;          // id файла или null
+    const nameIn = h("input", { maxlength: 40, placeholder: "Ваше имя", value: S.me.display });
+    const err1 = h("p", { class: "error" });
+    const save = h("button", { class: "btn", type: "submit" }, "Сохранить");
+    const preview = h("div", { class: "profile-ava" });
+    const showPreview = () => preview.replaceChildren(userAvatar({ ...S.me, avatar: newAvatar }, "lg", true));
+    showPreview();
+
+    const fileIn = h("input", { type: "file", accept: "image/*", hidden: true });
+    const status = h("div", { class: "muted small" });
+    const removeBtn = h("button", { class: "mini-btn danger", type: "button", onclick: () => { newAvatar = null; showPreview(); removeBtn.classList.add("hidden"); } }, "Убрать фото");
+    if (!newAvatar) removeBtn.classList.add("hidden");
+    fileIn.addEventListener("change", async () => {
+      const f = fileIn.files[0]; fileIn.value = "";
+      if (!f) return;
+      status.textContent = "Загрузка фото…";
+      save.disabled = true;
+      try {
+        const up = await uploadFile(await squareImage(f));
+        newAvatar = up.id; showPreview(); removeBtn.classList.remove("hidden"); status.textContent = "";
+      } catch (e) { status.textContent = ""; toast(e.message || "Не удалось загрузить фото", true); }
+      finally { save.disabled = false; }
+    });
+
+    const profileForm = h("form", { class: "profile-form" },
+      h("div", { class: "profile-top" }, preview,
+        h("div", { class: "profile-btns" },
+          h("button", { class: "mini-btn", type: "button", onclick: () => fileIn.click() }, "📷 Сменить фото"),
+          removeBtn, status, fileIn)),
+      h("label", { class: "info-label" }, "Имя (его видят все)"), nameIn,
+      h("div", { class: "muted small" }, "Юзернейм: @" + S.me.username + " (не меняется)"),
+      err1, save);
+    profileForm.addEventListener("submit", async (e) => {
+      e.preventDefault(); save.disabled = true; err1.textContent = "";
+      try { const r = await call("update_profile", { display: nameIn.value, avatar: newAvatar }); onUserUpdate(r.me); toast("Профиль сохранён"); closeModal(); }
+      catch (x) { err1.textContent = x.message; } finally { save.disabled = false; }
+    });
+
+    const oldIn = h("input", { type: "password", placeholder: "Текущий пароль", autocomplete: "current-password" });
+    const newIn = h("input", { type: "password", placeholder: "Новый пароль (от 6 символов)", autocomplete: "new-password" });
+    const repIn = h("input", { type: "password", placeholder: "Повторите новый пароль", autocomplete: "new-password" });
+    const err2 = h("p", { class: "error" });
+    const pwBtn = h("button", { class: "btn ghost", type: "submit" }, "Сменить пароль");
+    const pwForm = h("form", { class: "profile-form" }, h("h3", null, "🔒 Смена пароля"), oldIn, newIn, repIn, err2, pwBtn);
+    pwForm.addEventListener("submit", async (e) => {
+      e.preventDefault(); err2.textContent = "";
+      if (newIn.value !== repIn.value) { err2.textContent = "Новые пароли не совпадают"; return; }
+      pwBtn.disabled = true;
+      try { const r = await call("change_password", { old: oldIn.value, new: newIn.value, token: S.token }); toast(r.text); oldIn.value = newIn.value = repIn.value = ""; }
+      catch (x) { err2.textContent = x.message; } finally { pwBtn.disabled = false; }
+    });
+
+    $("modal").replaceChildren(
+      h("div", { class: "users-head" }, h("h2", null, "⚙️ Профиль"), h("button", { class: "icon-btn", type: "button", onclick: closeModal }, "✕")),
+      profileForm, pwForm);
+    $("modalWrap").classList.remove("hidden");
+  }
+
   // ================= Меню =================
   $("menuBtn").addEventListener("click", (e) => { e.stopPropagation(); $("menu").classList.toggle("hidden"); });
   document.addEventListener("click", (e) => { if (!$("menu").contains(e.target)) $("menu").classList.add("hidden"); });
@@ -749,6 +893,8 @@
     if (act === "new-group") newChatModal("group");
     if (act === "new-channel") newChatModal("channel");
     if (act === "join-link") joinLinkModal();
+    if (act === "users") usersModal();
+    if (act === "profile") profileModal();
     if (act === "admin") adminModal();
     if (act === "logout") {
       if (!confirm("Выйти из аккаунта?")) return;
