@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diamond Messenger</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💎</text></svg>">
+</head>
+<body>
+
+<!-- ===== Вход / регистрация ===== -->
+<div id="auth" class="auth">
+  <div class="auth-card">
+    <div class="logo">💎</div>
+    <h1>Diamond Messenger</h1>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Вход</button>
+      <button class="tab" data-tab="register">Регистрация</button>
+    </div>
+    <form id="authForm">
+      <input id="fDisplay" class="hidden" maxlength="40" placeholder="Ваше имя (как вас видят)" autocomplete="name">
+      <input id="fUser" maxlength="20" placeholder="Юзернейм" autocomplete="username" autocapitalize="off" spellcheck="false">
+      <input id="fPass" type="password" placeholder="Пароль" autocomplete="current-password">
+      <button type="submit" id="authBtn">Войти</button>
+      <p id="authError" class="error"></p>
+      <p id="authConn" class="muted small"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Приложение ===== -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="side-top">
+      <button class="icon-btn" id="menuBtn" title="Меню">☰</button>
+      <div class="search">
+        <input id="search" placeholder="Поиск людей, групп, каналов" autocomplete="off" spellcheck="false">
+        <button class="icon-btn small hidden" id="searchClear">✕</button>
+      </div>
+    </div>
+    <div id="menu" class="menu hidden">
+      <div class="menu-me">
+        <div id="meAvatar"></div>
+        <div>
+          <div id="meName" class="bold"></div>
+          <div id="meUser" class="muted small"></div>
+        </div>
+      </div>
+      <button data-act="new-group">👥 Создать группу</button>
+      <button data-act="new-channel">📢 Создать канал</button>
+      <button data-act="join-link">🔗 Вступить по ссылке</button>
+      <button data-act="admin" id="adminMenuBtn" class="hidden">🛡️ Админ-панель</button>
+      <button data-act="logout" class="danger">🚪 Выйти</button>
+    </div>
+    <div id="chatList" class="chat-list"></div>
+    <div id="searchResults" class="chat-list hidden"></div>
+    <button class="fab" id="fab" title="Новый чат">✎</button>
+    <div class="conn-bar hidden" id="connBar">Подключение…</div>
+  </aside>
+
+  <main class="chat" id="chat">
+    <div class="empty" id="empty">
+      <div class="logo">💎</div>
+      <p>Выберите чат или найдите собеседника через поиск</p>
+    </div>
+    <div class="chat-inner hidden" id="chatInner">
+      <header class="chat-header">
+        <button class="icon-btn back" id="backBtn">←</button>
+        <div id="chatAvatar"></div>
+        <div class="chat-head-text" id="chatHeadText">
+          <div class="chat-title" id="chatTitle"></div>
+          <div class="chat-sub" id="chatSub"></div>
+        </div>
+        <button class="icon-btn" id="infoBtn" title="Информация">ⓘ</button>
+      </header>
+      <div class="messages" id="messages"></div>
+      <div class="attach-preview hidden" id="attachPreview"></div>
+      <form class="composer" id="composer">
+        <label class="icon-btn" title="Прикрепить файл">📎<input type="file" id="fileInput" hidden></label>
+        <textarea id="msgInput" rows="1" maxlength="4000" placeholder="Сообщение…"></textarea>
+        <button type="submit" class="send-btn" title="Отправить">➤</button>
+      </form>
+      <div class="bottom-bar hidden" id="bottomBar"></div>
+    </div>
+  </main>
+
+  <aside class="info hidden" id="info"></aside>
+</div>
+
+<!-- ===== Модальное окно ===== -->
+<div class="modal-wrap hidden" id="modalWrap"><div class="modal" id="modal"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
